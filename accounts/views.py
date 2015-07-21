@@ -10,6 +10,7 @@ from forms import RegistrationForm, LoginForm
 from flask.ext.mail import Message
 from flask.ext.babel import gettext
 from flask.ext.login import LoginManager, login_user, logout_user
+from hashlib import sha1
 
 import random
 
@@ -64,7 +65,7 @@ def login():
         form = LoginForm()
         if form.validate():
             user = Account.get(Account.email == form.email.data)
-            if user and user.password == request.form['password']:
+            if user and user.password == sha1(request.form['password']).hexdigest():
                 login_user(user)
             else:
                 flash(gettext('Username or password incorrect'))
@@ -97,16 +98,14 @@ def register():
         if recaptcha.verify():
             try:
                 with db.transaction():
-                    # Attempt to create the user. If the email is taken, due to the
-                    # unique constraint, the database will raise an IntegrityError.
                     email = form.email.data
                     password = get_random_string()
                     msg = Message("Hello", sender="test.trio@gmail.com",
                                   recipients=[email])
                     account = Account.create(
-                        email=email, password=''
+                        email=email, password=sha1(password).hexdigest()
                     )
-                    account.set_password(password)
+                    # account.set_password(password)
                     msg.subject = gettext("Thanks for registering")
                     msg.html = render_template("registration_complete.html", password=password)
                     mail.send(msg)
