@@ -9,7 +9,7 @@ from forms import RegistrationForm, LoginForm
 
 from flask.ext.mail import Message
 from flask.ext.babel import gettext
-from flask.ext.login import LoginManager, login_user, logout_user
+from flask.ext.login import LoginManager, login_user, logout_user, current_user
 from hashlib import sha1
 
 import random
@@ -65,7 +65,7 @@ def login():
         form = LoginForm()
         if form.validate():
             user = Account.get(Account.email == form.email.data)
-            if user and user.password == sha1(request.form['password']).hexdigest():
+            if user and (user.password == sha1(request.form['password']).hexdigest()):
                 login_user(user)
             else:
                 flash(gettext('Username or password incorrect'))
