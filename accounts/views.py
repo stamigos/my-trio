@@ -105,7 +105,6 @@ def register():
                     account = Account.create(
                         email=email, password=sha1(password).hexdigest()
                     )
-                    # account.set_password(password)
                     msg.subject = gettext("Thanks for registering")
                     msg.html = render_template("registration_complete.html", password=password)
                     mail.send(msg)

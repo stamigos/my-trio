@@ -6,6 +6,9 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 CSRF_ENABLED = True
 SECRET_KEY = 'you-will-never-guess'
 
+GOOGLE_KEY = "6LfB4AkTAAAAAN1AKCBeT0YNme3gLK66WYkuwIb4"
+GOOGLE_SECRET_KEY = "6LfB4AkTAAAAAIs-7bsnz_uBm40c0YdfNuR-eseu"
+
 # configure our database
 DATABASE = {
     'name': 'trio_db.db',
