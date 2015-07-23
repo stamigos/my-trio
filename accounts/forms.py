@@ -1,10 +1,5 @@
-from wtforms import Form, StringField, PasswordField, validators
+from wtforms import Form, StringField, validators
 
 
 class RegistrationForm(Form):
-    email = StringField('Email', [validators.DataRequired(), validators.Email()])
-
-
-class LoginForm(Form):
-    email = StringField('Email', [validators.DataRequired(), validators.Email()])
-    password = PasswordField('Password')
+    email = StringField('Email', [validators.DataRequired(), validators.Email(), validators.Length(min=6, max=35)])
