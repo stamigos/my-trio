@@ -29,16 +29,14 @@
                                     <span></span>
                                 </div>
 
-                             {% for field in form %}
                                {% autoescape true %}
                                 <div class="form-group">
                                 <label for="email" class="col-md-3 control-label">Email</label>
                                 <div class="col-md-9">
-                                    {{ field(type="email", class="form-control", placeholder=_('Enter email'), required="True") }}
+                                    {{ form.email(type="email", class="form-control", placeholder=_('Enter email'), required="True") }}
                                 </div>
                                 </div>
                                 {% endautoescape %}
-                             {% endfor %}
 
                                 <div class="form-group">
                                     <label for="Google reCaptcha" class="col-md-3 control-label">Google reCaptcha</label>
@@ -46,6 +44,13 @@
                                          {{ recaptcha }}
                                     </div>
                                 </div>
+                                <div class="form-group">
+                                <label for="text" class="col-md-3 control-label"></label>
+                                <div class="col-md-9">
+                                    {{ form.accept_tos(type="checkbox", value="y") }}<span style="padding-left: 10px;">{{ _("Confirming registration you agree to") }} <a href="{{ url_for('rules', lang_code=g.current_lang) }}">{{ _("RULES") }}</a> {{ _("of payment system.") }}</span>
+                                </div>
+                                </div>
+
                         <div style="margin-top:10px" class="form-group">
                             <div class="col-sm-12 controls">
                             {% with messages = get_flashed_messages() %}
