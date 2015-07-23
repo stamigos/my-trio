@@ -1,7 +1,8 @@
 # -*- coding: utf8 -*-
 
-from peewee import Model, CharField, DateTimeField, datetime as peewee_datetime
+from peewee import Model, CharField, DateTimeField, BooleanField, datetime as peewee_datetime
 from playhouse.pool import PooledPostgresqlExtDatabase
+from flask_peewee.auth import BaseUser
 
 from config import DB_CONFIG
 from my_trio.utils import Struct
@@ -47,14 +48,19 @@ class _Model(Model):
                 self.delete_instance()
 
 
-class Account(_Model):
+class Account(_Model, BaseUser):
     class Meta:
         db_table = "accounts"
 
     email = CharField(unique=True)
     registered_on = DateTimeField(default=peewee_datetime.datetime.now())
     password = CharField()
+    active = BooleanField(default=True)
+    first_login = BooleanField(default=True)  # check first user login
     description = CharField(null=True)
+
+    def __unicode__(self):
+        return self.email
 
 
 def init_db():
