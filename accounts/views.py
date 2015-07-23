@@ -3,28 +3,22 @@ from peewee import IntegrityError
 
 from my_trio import app, recaptcha, mail
 from my_trio import babel
-from config import LANGUAGES
 from my_trio.models import Account, db
-from forms import RegistrationForm, LoginForm
+from forms import RegistrationForm
 
 from flask.ext.mail import Message
 from flask.ext.babel import gettext
-from flask.ext.login import LoginManager, login_user, logout_user, current_user
+from flask_peewee.auth import Auth
 from hashlib import sha1
 
 import random
 
 random = random.SystemRandom()
 
-login_manager = LoginManager()
-login_manager.init_app(app)
+auth = Auth(app, db, user_model=Account)
+
 
 register_page = Blueprint('register', __name__, template_folder="templates", url_prefix='/')
-
-
-@login_manager.user_loader
-def load_user(userid):
-    return Account(userid)
 
 
 @app.before_request
@@ -46,42 +40,63 @@ def root():
     return redirect(url_for('index', lang_code='en'))
 
 
-@app.route('/<lang_code>', methods=['GET', 'POST'])
+@app.route('/<lang_code>/', methods=['GET', 'POST'])
 def index():
-    # g.lang_code = lang_code
+    user = auth.get_logged_in_user()
+
     if request.view_args and 'lang_code' in request.view_args:
         if request.view_args['lang_code'] not in ('en', 'ru', 'uk_UA'):
             return abort(404)
         g.current_lang = request.view_args['lang_code']
         request.view_args.pop('lang_code')
+
+    if user is None:
+        return render_template('index.html',
+                               create_url=url_for('register', lang_code=g.current_lang),
+                               login_url=url_for('login', lang_code=g.current_lang))
+
+    if user.first_login and request.method == 'POST':
+        password = request.form['password']
+        repeat_password = request.form['password_repeat']
+        print(password)
+        print(repeat_password)
+        if password is not repeat_password:
+            flash(gettext("Password's mismatch"))
+        else:
+            hashed_password = sha1(password).hexdigest()
+            user.set_password(hashed_password)
+            flash(gettext("Password changed"))
+            #user.first_login = False
+            user.save()
+
     return render_template('index.html',
-                           create_url=url_for('register', lang_code=g.current_lang),
-                           login_url=url_for('login', lang_code=g.current_lang))
+                           first_login=str(user.first_login),
+                           logout_url=url_for('logout', lang_code=g.current_lang))
 
 
-@app.route('/<lang_code>/login', methods=['GET', 'POST'])
+@app.route('/<lang_code>/login/', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        form = LoginForm()
-        if form.validate():
-            user = Account.get(Account.email == form.email.data)
-            if user and (user.password == sha1(request.form['password']).hexdigest()):
-                login_user(user)
-            else:
-                flash(gettext('Username or password incorrect'))
+    if request.method == 'POST' and request.form['email']:
+        user = Account.select().where(Account.email == request.form['email']).get()
+        password = sha1(request.form['password']).hexdigest()
 
+        if user and user.password == password:
+            auth.login_user(user)
             flash(gettext('Logged in successfully.'))
+            return redirect(request.args.get('next') or
+                            url_for('index', lang_code=g.current_lang))
+        else:
+            flash(gettext('Email or password incorrect'))
 
-            next = request.args.get('next')
-            if not next.is_valid(next):
-                return abort(400)
+    return render_template('login.html',
+                           url_register=url_for('register', lang_code=g.current_lang),
+                           url_login=url_for('login', lang_code=g.current_lang))
 
-            return redirect(next or url_for('index'))
-    else:
-        form = LoginForm()
 
-    return render_template('login.html', form=form, url_register='/' + g.current_lang + '/register',
-                           url_login='/' + g.current_lang + '/login')
+@app.route('/<lang_code>/logout/')
+def logout():
+    auth.logout_user()
+    return redirect(url_for('index', lang_code=g.current_lang))
 
 
 def get_random_string(length=12,
@@ -90,9 +105,8 @@ def get_random_string(length=12,
     return ''.join(random.choice(allowed_chars) for i in range(length))
 
 
-@app.route('/<lang_code>/register', methods=['GET', 'POST'])
+@app.route('/<lang_code>/register/', methods=['GET', 'POST'])
 def register():
-    # g.lang_code = lang_code
     form = RegistrationForm(request.form)
     if request.method == 'POST' and form.validate():
         if recaptcha.verify():
@@ -106,15 +120,18 @@ def register():
                         email=email, password=sha1(password).hexdigest()
                     )
                     msg.subject = gettext("Thanks for registering")
-                    msg.html = render_template("registration_complete.html", password=password)
+                    msg.html = render_template("registration_complete.html",
+                                               password=password,
+                                               url_login=url_for('login', lang_code=g.current_lang))
                     mail.send(msg)
                     flash(gettext('Successfully registered! Check your email.'))
 
             except IntegrityError:
                     flash(gettext('That email is already taken'))
-            return redirect('/' + g.current_lang + '/register')
+            return redirect(url_for('register', lang_code=g.current_lang))
         else:
             if not recaptcha.verify():
                 flash(gettext('Recaptcha failed'))
-    return render_template('register.html', form=form, url_register='/' + g.current_lang + '/register',
-                           url_login='/' + g.current_lang + '/login')
+    return render_template('register.html', form=form,
+                           url_register=url_for('register', lang_code=g.current_lang),
+                           url_login=url_for('login', lang_code=g.current_lang))
