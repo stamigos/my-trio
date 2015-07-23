@@ -17,6 +17,15 @@
 <div class="container">
 
 {% if user %}
+    {% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <ul class=flashes>
+    {% for message in messages %}
+      <li style="color: darkred;">{{ message }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
     <p style="padding-top: 15px;">
         <a href="{{ logout_url }}" id="btn-login" class="btn btn-success">{{ _("Logout") }}</a>
     </p>
@@ -38,7 +47,8 @@
                                 <div class="form-group">
                                     <label for="email" class="col-md-3 control-label">{{ _("Email") }}</label>
                                     <div class="col-md-9">
-                                         <input id="login-username" name="email" class="form-control" type="text" readonly="readonly" value="{{ user.email }}" />
+                                         <input id="login-username" name="email" class="form-control" type="text" readonly="readonly"
+                                                value="{{ user.email }}" />
                                     </div>
                                 </div>
 
@@ -52,24 +62,17 @@
                                 <div class="form-group">
                                     <label for="password" class="col-md-3 control-label">{{ _("Repeat password") }}</label>
                                     <div class="col-md-9">
-                                        <input id="login-password" type="password" class="form-control" name="password"
-                                       value="{{ request.form.password_repeat }}" placeholder="{{ _("Repeat password") }}" required>
+                                        <input id="login-password" type="password" class="form-control" name="password_repeat"
+                                       value="{{ request.form.password_repeat }}" placeholder="{{ _("Password repeat") }}" required>
                                     </div>
                                 </div>
-
-                        <div style="margin-top:10px" class="form-group">
-                            <div class="col-sm-12 controls">
-                            {% with messages = get_flashed_messages() %}
-                              {% if messages %}
-                                <ul class=flashes>
-                                {% for message in messages %}
-                                  <li style="color: darkred;">{{ message }}</li>
-                                {% endfor %}
-                                </ul>
-                              {% endif %}
-                            {% endwith %}
-                            </div>
-                        </div>
+                                <div class="form-group">
+                                    <label for="text" class="col-md-3 control-label">{{ _("Keyword") }}</label>
+                                    <div class="col-md-9">
+                                        <input id="login-password" type="text" class="form-control" name="keyword"
+                                       value="{{ request.form.keyword }}" placeholder="{{ _("Enter keyword") }}">
+                                    </div>
+                                </div>
 
                                 <div class="form-group">
                                     <!-- Button -->
@@ -105,8 +108,10 @@
     </ul>
   {% endif %}
 {% endwith %}
-   <a href="{{ create_url }}" id="btn-login" class="btn btn-info">{{ _("Create") }}</a>
- <a href="{{ login_url }}" id="btn-signup" class="btn btn-success">{{ _("Login") }}</a>
+    <p style="padding-top: 15px;">
+        <a href="{{ create_url }}" id="btn-login" class="btn btn-info">{{ _("Create") }}</a>
+        <a href="{{ login_url }}" id="btn-signup" class="btn btn-success">{{ _("Login") }}</a>
+    </p>
 {% endif %}
 </div>
 </body>
