@@ -11,6 +11,7 @@ from flask.ext.babel import gettext
 from flask_peewee.auth import Auth
 from hashlib import sha1
 
+import safe
 import random
 
 random = random.SystemRandom()
@@ -58,20 +59,26 @@ def index():
     if user.first_login and request.method == 'POST':
         password = request.form['password']
         repeat_password = request.form['password_repeat']
-        print(password)
-        print(repeat_password)
-        if password is not repeat_password:
+        keyword = request.form['keyword']
+        if password != repeat_password:
             flash(gettext("Password's mismatch"))
         else:
             hashed_password = sha1(password).hexdigest()
-            user.set_password(hashed_password)
+            user.password = hashed_password
+            user.keyword = keyword
+            flash(gettext(safe.check(password)))
             flash(gettext("Password changed"))
-            #user.first_login = False
+            user.first_login = False
             user.save()
 
     return render_template('index.html',
                            first_login=str(user.first_login),
                            logout_url=url_for('logout', lang_code=g.current_lang))
+
+
+@app.route('/<lang_code>/rules/')
+def rules():
+    return render_template('rules.html', lang_code=g.current_lang)
 
 
 @app.route('/<lang_code>/login/', methods=['GET', 'POST'])
@@ -132,6 +139,8 @@ def register():
         else:
             if not recaptcha.verify():
                 flash(gettext('Recaptcha failed'))
+    if request.method == 'POST' and not form.accept_tos.data:
+        flash(gettext('You should accept the TOS'))
     return render_template('register.html', form=form,
                            url_register=url_for('register', lang_code=g.current_lang),
                            url_login=url_for('login', lang_code=g.current_lang))
