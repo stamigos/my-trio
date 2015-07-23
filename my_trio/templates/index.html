@@ -15,15 +15,99 @@
 </head>
 <body>
 <div class="container">
-            <div id="loginbox" style="margin-top:50px;" class="mainbox col-md-6 col-md-offset-3 col-sm-8 col-sm-offset-2">
-            <div class="panel panel-info" >
- <a href="{{ create_url }}" id="btn-login" class="btn btn-success">{{ _("Create") }}</a>
+
+{% if user %}
+    <p style="padding-top: 15px;">
+        <a href="{{ logout_url }}" id="btn-login" class="btn btn-success">{{ _("Logout") }}</a>
+    </p>
+    {% if first_login == 'True' %}
+         <div id="signupbox" style="margin-top:50px" class="mainbox col-md-6 col-md-offset-3 col-sm-8 col-sm-offset-2">
+                    <div class="panel panel-info">
+                        <div class="panel-heading">
+                            <div class="panel-title">{{ _("First login") }}</div>
+                        </div>
+                        <div class="panel-body" >
+                            <form method="POST" id="signupform" class="form-horizontal" role="form" action="{{ url_for('index', lang_code=g.current_lang) }}">
+
+                                <div id="signupalert" style="display:none" class="alert alert-danger">
+                                    <p>Error:</p>
+                                    <span></span>
+                                </div>
+
+
+                                <div class="form-group">
+                                    <label for="email" class="col-md-3 control-label">{{ _("Email") }}</label>
+                                    <div class="col-md-9">
+                                         <input id="login-username" name="email" class="form-control" type="text" readonly="readonly" value="{{ user.email }}" />
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="password" class="col-md-3 control-label">{{ _("Password") }}</label>
+                                    <div class="col-md-9">
+                                        <input id="login-password" type="password" class="form-control" name="password"
+                                       value="{{ request.form.password }}" placeholder="{{ _("Enter password") }}" required>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="password" class="col-md-3 control-label">{{ _("Repeat password") }}</label>
+                                    <div class="col-md-9">
+                                        <input id="login-password" type="password" class="form-control" name="password"
+                                       value="{{ request.form.password_repeat }}" placeholder="{{ _("Repeat password") }}" required>
+                                    </div>
+                                </div>
+
+                        <div style="margin-top:10px" class="form-group">
+                            <div class="col-sm-12 controls">
+                            {% with messages = get_flashed_messages() %}
+                              {% if messages %}
+                                <ul class=flashes>
+                                {% for message in messages %}
+                                  <li style="color: darkred;">{{ message }}</li>
+                                {% endfor %}
+                                </ul>
+                              {% endif %}
+                            {% endwith %}
+                            </div>
+                        </div>
+
+                                <div class="form-group">
+                                    <!-- Button -->
+                                    <div class="col-md-offset-3 col-md-9">
+                                         <input id="btn-signup" type="submit" class="btn btn-info" value={{ _("Save") }} />
+                                    </div>
+                                </div>
+
+
+
+                            </form>
+                            <div class="form-group">
+                                    <div class="col-md-12 control">
+                                        <div style="border-top: 1px solid#888; padding-top:15px; font-size:85%" >
+                                             <a href="{{ url_for("index", lang_code="en") }}">En</a>
+                                             <a href="{{ url_for("index", lang_code="ru") }}">РУС</a>
+                                             <a href="{{ url_for("index", lang_code="uk_UA") }}">УКР</a>
+                                        </div>
+                                    </div>
+                                </div>
+                         </div>
+                    </div>
+
+         </div>
+    {% endif %}
+{% else %}
+    {% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <ul class=flashes>
+    {% for message in messages %}
+      <li style="color: darkred;">{{ message }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+   <a href="{{ create_url }}" id="btn-login" class="btn btn-info">{{ _("Create") }}</a>
  <a href="{{ login_url }}" id="btn-signup" class="btn btn-success">{{ _("Login") }}</a>
- <a href="/en">En</a>
- <a href="/ru">РУС</a>
- <a href="/uk_UA">УКР</a>
-            </div>
-            </div>
+{% endif %}
 </div>
 </body>
 </html>
