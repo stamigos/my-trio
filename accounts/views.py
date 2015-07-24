@@ -1,5 +1,5 @@
 from flask import flash, render_template, request, redirect, url_for, Blueprint, g, abort
-from peewee import IntegrityError
+from peewee import IntegrityError, datetime as peewee_datetime
 
 from my_trio import app, recaptcha, mail
 from my_trio import babel
@@ -50,25 +50,25 @@ def index():
         return render_template('index.html',
                                create_url=url_for('register', lang_code=g.current_lang),
                                login_url=url_for('login', lang_code=g.current_lang))
+    if request.method == 'POST':
+        if user.last_log_in is None:
+            password = request.form['password']
+            repeat_password = request.form['password_repeat']
+            keyword = request.form['keyword']
 
-    if user.first_login and request.method == 'POST':
-        password = request.form['password']
-        repeat_password = request.form['password_repeat']
-        keyword = request.form['keyword']
-
-        if password != repeat_password:
-            flash(gettext("Password's mismatch"))
-        else:
-            if check_password_strength(user.email, password):
-                hashed_password = sha1(password).hexdigest()
-                user.password = hashed_password
-                user.keyword = keyword
-                flash(gettext("Password changed"))
-                user.first_login = False
-                user.save()
+            if password != repeat_password:
+                flash(gettext("Password's mismatch"))
+            else:
+                if check_password_strength(user.email, password):
+                    hashed_password = sha1(password).hexdigest()
+                    user.password = hashed_password
+                    user.keyword = keyword
+                    user.last_log_in = peewee_datetime.datetime.now()
+                    flash(gettext("Password changed"))
+                    user.save()
 
     return render_template('index.html',
-                           first_login=str(user.first_login),
+                           first_login=str(user.last_log_in),
                            logout_url=url_for('logout', lang_code=g.current_lang))
 
 
