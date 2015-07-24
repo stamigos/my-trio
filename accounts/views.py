@@ -63,9 +63,10 @@ def index():
                     hashed_password = sha1(password).hexdigest()
                     user.password = hashed_password
                     user.keyword = keyword
-                    user.last_log_in = peewee_datetime.datetime.now()
                     flash(gettext("Password changed"))
                     user.save()
+        else:
+            user.last_log_in = peewee_datetime.datetime.now()
 
     return render_template('index.html',
                            first_login=str(user.last_log_in),
@@ -85,6 +86,9 @@ def login():
 
         if user and user.password == password:
             auth.login_user(user)
+            if user.last_log_in:
+                user.last_log_in = peewee_datetime.datetime.now()
+            user.save()
             flash(gettext('Logged in successfully.'))
             return redirect(request.args.get('next') or
                             url_for('index', lang_code=g.current_lang))
