@@ -1,6 +1,12 @@
+from flask import flash
+from flask.ext.babel import gettext
+
 import logging
 import hashlib
 import urllib
+import random
+import re
+
 from decimal import Decimal
 
 from flask.json import JSONEncoder
@@ -66,3 +72,35 @@ def get_request_info(request):
 def get_response_info(response):
 	headers = Struct(**dict(response.headers.items()))
 	return Struct(body=response.text, headers=headers, code=response.status_code)
+
+def check_password_strength(email, password):
+    valid = True
+    if len(password) >= 30:
+        valid = False
+        flash(gettext("Password's length can't be more than 30 symbols"))
+
+    elif len(password) <= 8:
+        valid = False
+        flash(gettext("Password's length can't be less than 8 symbols"))
+
+    if email == password:
+        valid = False
+        flash(gettext("Password can't be your email"))
+
+    if not re.findall('(\d+)', password):
+        valid = False
+        flash(gettext("Password must have at least one digit"))
+
+    if not re.findall(r'[A-Z]', password):
+        valid = False
+        flash(gettext("Password must have at least one uppercase letter"))
+
+    if not re.findall(r'[a-z]', password):
+        valid = False
+        flash(gettext("Password must have at least one lowercase letter"))
+    return valid
+
+def get_random_string(length=12,
+                      allowed_chars='abcdefghijklmnopqrstuvwxyz'
+                                    'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'):
+    return ''.join(random.choice(allowed_chars) for i in range(length))

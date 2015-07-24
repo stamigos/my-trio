@@ -5,19 +5,20 @@ from my_trio import app, recaptcha, mail
 from my_trio import babel
 from my_trio.models import Account, db
 from forms import RegistrationForm
+from my_trio.utils import check_password_strength
+from my_trio.utils import get_random_string
 
 from flask.ext.mail import Message
 from flask.ext.babel import gettext
 from flask_peewee.auth import Auth
+from config import MAIL_USERNAME
 from hashlib import sha1
-
 import random
-import re
 
-random = random.SystemRandom()
 
 auth = Auth(app, db, user_model=Account)
 
+random = random.SystemRandom()
 
 register_page = Blueprint('register', __name__, template_folder="templates", url_prefix='/')
 
@@ -44,12 +45,6 @@ def root():
 @app.route('/<lang_code>/', methods=['GET', 'POST'])
 def index():
     user = auth.get_logged_in_user()
-
-    if request.view_args and 'lang_code' in request.view_args:
-        if request.view_args['lang_code'] not in ('en', 'ru', 'uk_UA'):
-            return abort(404)
-        g.current_lang = request.view_args['lang_code']
-        request.view_args.pop('lang_code')
 
     if user is None:
         return render_template('index.html',
@@ -107,40 +102,6 @@ def logout():
     return redirect(url_for('index', lang_code=g.current_lang))
 
 
-def check_password_strength(email, password):
-    valid = True
-    if len(password) >= 30:
-        valid = False
-        flash(gettext("Password's length can't be more than 30 symbols"))
-
-    elif len(password) <= 8:
-        valid = False
-        flash(gettext("Password's length can't be less than 8 symbols"))
-
-    if email == password:
-        valid = False
-        flash(gettext("Password can't be your email"))
-
-    if not re.findall('(\d+)', password):
-        valid = False
-        flash(gettext("Password must have at least one digit"))
-
-    if not re.findall(r'[A-Z]', password):
-        valid = False
-        flash(gettext("Password must have at least one uppercase letter"))
-
-    if not re.findall(r'[a-z]', password):
-        valid = False
-        flash(gettext("Password must have at least one lowercase letter"))
-    return valid
-
-
-def get_random_string(length=12,
-                      allowed_chars='abcdefghijklmnopqrstuvwxyz'
-                                    'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'):
-    return ''.join(random.choice(allowed_chars) for i in range(length))
-
-
 @app.route('/<lang_code>/register/', methods=['GET', 'POST'])
 def register():
     form = RegistrationForm(request.form)
@@ -150,7 +111,7 @@ def register():
                 with db.transaction():
                     email = form.email.data
                     password = get_random_string()
-                    msg = Message("Hello", sender="test.trio@gmail.com",
+                    msg = Message("Hello", sender=MAIL_USERNAME,
                                   recipients=[email])
                     account = Account.create(
                         email=email, password=sha1(password).hexdigest()
