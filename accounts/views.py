@@ -11,8 +11,8 @@ from flask.ext.babel import gettext
 from flask_peewee.auth import Auth
 from hashlib import sha1
 
-import safe
 import random
+import re
 
 random = random.SystemRandom()
 
@@ -60,16 +60,17 @@ def index():
         password = request.form['password']
         repeat_password = request.form['password_repeat']
         keyword = request.form['keyword']
+
         if password != repeat_password:
             flash(gettext("Password's mismatch"))
         else:
-            hashed_password = sha1(password).hexdigest()
-            user.password = hashed_password
-            user.keyword = keyword
-            flash(gettext(safe.check(password)))
-            flash(gettext("Password changed"))
-            user.first_login = False
-            user.save()
+            if check_password_strength(user.email, password):
+                hashed_password = sha1(password).hexdigest()
+                user.password = hashed_password
+                user.keyword = keyword
+                flash(gettext("Password changed"))
+                user.first_login = False
+                user.save()
 
     return render_template('index.html',
                            first_login=str(user.first_login),
@@ -104,6 +105,34 @@ def login():
 def logout():
     auth.logout_user()
     return redirect(url_for('index', lang_code=g.current_lang))
+
+
+def check_password_strength(email, password):
+    valid = True
+    if len(password) >= 30:
+        valid = False
+        flash(gettext("Password's length can't be more than 30 symbols"))
+
+    elif len(password) <= 8:
+        valid = False
+        flash(gettext("Password's length can't be less than 8 symbols"))
+
+    if email == password:
+        valid = False
+        flash(gettext("Password can't be your email"))
+
+    if not re.findall('(\d+)', password):
+        valid = False
+        flash(gettext("Password must have at least one digit"))
+
+    if not re.findall(r'[A-Z]', password):
+        valid = False
+        flash(gettext("Password must have at least one uppercase letter"))
+
+    if not re.findall(r'[a-z]', password):
+        valid = False
+        flash(gettext("Password must have at least one lowercase letter"))
+    return valid
 
 
 def get_random_string(length=12,
