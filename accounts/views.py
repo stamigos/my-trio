@@ -63,10 +63,12 @@ def index():
                     hashed_password = sha1(password).hexdigest()
                     user.password = hashed_password
                     user.keyword = keyword
-                    flash(gettext("Password changed"))
+                    user.last_log_in = peewee_datetime.datetime.now()
                     user.save()
-        else:
-            user.last_log_in = peewee_datetime.datetime.now()
+                    flash(gettext("Password changed"))
+
+    if user.last_log_in:
+        user.last_log_in = peewee_datetime.datetime.now()
 
     return render_template('index.html',
                            first_login=str(user.last_log_in),
@@ -123,7 +125,7 @@ def register():
                     msg.subject = gettext("Thanks for registering")
                     msg.html = render_template("registration_complete.html",
                                                password=password,
-                                               url_login=url_for('login', lang_code=g.current_lang))
+                                               url_login=url_for('login', lang_code=g.current_lang, _external=True))
                     mail.send(msg)
                     flash(gettext('Successfully registered! Check your email.'))
 
