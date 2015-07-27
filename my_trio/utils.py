@@ -100,7 +100,6 @@ def check_password_strength(email, password):
         flash(gettext("Password must have at least one lowercase letter"))
     return valid
 
-def get_random_string(length=12,
-                      allowed_chars='abcdefghijklmnopqrstuvwxyz'
-                                    'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'):
+def get_random_string(length=3,
+                      allowed_chars='0123456789'):
     return ''.join(random.choice(allowed_chars) for i in range(length))
