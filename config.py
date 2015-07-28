@@ -25,12 +25,12 @@ DB_CONFIG = dict(database="trio_db", user="trio_user",
 DATABASE_QUERY_TIMEOUT = 0.5
 
 # email server
-MAIL_SERVER = 'smtp.gmail.com'  # your mailserver
+MAIL_SERVER = "mail.pay-trio.com"  # your mailserver
 MAIL_PORT = 587
 MAIL_USE_TLS = True
 MAIL_USE_SSL = False
-MAIL_USERNAME = "test.mytrio@gmail.com"
-MAIL_PASSWORD = "mytesttrio111"
+MAIL_USERNAME = "team@pay-trio.com"
+MAIL_PASSWORD = "20pwteam15"
 
 # available languages
 LANGUAGES = {
