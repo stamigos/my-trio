@@ -10,13 +10,14 @@ from my_trio.utils import get_random_string
 
 from flask.ext.mail import Message
 from flask.ext.babel import gettext
-from flask_peewee.auth import Auth
 from config import MAIL_USERNAME
 from hashlib import sha1
 import random
 
+from auth import CustomAuth
 
-auth = Auth(app, db, user_model=Account)
+
+auth = CustomAuth(app, db, user_model=Account)
 
 random = random.SystemRandom()
 

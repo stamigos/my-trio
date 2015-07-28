@@ -55,7 +55,7 @@ class Account(_Model, BaseUser):
     email = CharField(unique=True)
     registered_on = DateTimeField(default=peewee_datetime.datetime.now())
     password = CharField()
-    active = BooleanField(default=True)
+   # active = BooleanField(default=True)
     last_log_in = DateTimeField(null=True)
     keyword = CharField(max_length=70, null=True)  # keyword for restoring password
     description = CharField(null=True)
