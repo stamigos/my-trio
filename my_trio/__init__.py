@@ -13,6 +13,10 @@ mail = Mail(app)
 babel = Babel(app)
 
 recaptcha.init_app(app, GOOGLE_KEY, GOOGLE_SECRET_KEY)
+
 from my_trio.accounts.views import register_page
+from my_trio.accounts.errors import error_page
+from my_trio.accounts import errors, views
 
 app.register_blueprint(register_page)
+app.register_blueprint(error_page)
