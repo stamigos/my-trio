@@ -19,10 +19,10 @@ GOOGLE_SECRET_KEY = "6LfB4AkTAAAAAIs-7bsnz_uBm40c0YdfNuR-eseu"
 
 LOGGER = Struct(
     level=logging.DEBUG,
-    file="log_{date:%Y-%m-%d}.log".format(date=date.today()),
+    file="account_log_{date:%Y-%m-%d}.log".format(date=date.today()),
     formatter=logging.Formatter("%(asctime)s [%(thread)d:%(threadName)s] "
                                 "[%(levelname)s] - %(name)s:%(message)s"),
-    peewee_file="peewee_log_{date:%Y-%m-%d}.log".format(date=date.today())
+    peewee_file="account_peewee_log_{date:%Y-%m-%d}.log".format(date=date.today())
 )
 
 

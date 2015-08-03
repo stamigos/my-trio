@@ -73,6 +73,7 @@ def index():
                     user.keyword = keyword
                     user.last_log_in = peewee_datetime.datetime.now()
                     user.save()
+                    log.info("Password changed")
                     AccountLog.create(operation_type='change password',
                                       request_ip=request.remote_addr,
                                       request_headers=request.headers,
@@ -103,6 +104,7 @@ def login():
                 if user.last_log_in:
                     user.last_log_in = peewee_datetime.datetime.now()
                     user.save()
+                log.info("Logged in successfully.")
                 AccountLog.create(operation_type='login',
                                   request_ip=request.remote_addr,
                                   request_headers=request.headers,
@@ -111,6 +113,7 @@ def login():
                 return redirect(request.args.get('next') or
                                 url_for('index', lang_code=g.current_lang))
             else:
+                log.error("Email or password incorrect")
                 AccountLog.create(operation_type='login',
                                   error='Email or password incorrect',
                                   request_ip=request.remote_addr,
@@ -119,6 +122,7 @@ def login():
                 flash(gettext('Email or password incorrect'))
 
         except Account.DoesNotExist:
+                log.error('Email or password incorrect')
                 AccountLog.create(operation_type='login',
                                   error='Email or password incorrect',
                                   request_ip=request.remote_addr,
@@ -162,6 +166,7 @@ def register():
                     with app.app_context():
                         try:
                             mail.send(msg)
+                            log.info('Successfully registered! Check your email.')
                             AccountLog.create(operation_type='register',
                                               request_ip=request.remote_addr,
                                               request_headers=request.headers,
@@ -169,6 +174,7 @@ def register():
 
                             flash(gettext('Successfully registered! Check your email.'))
                         except smtplib.SMTPRecipientsRefused:
+                            log.error('Error while sending email')
                             AccountLog.create(operation_type='register',
                                               error='Error while sending mail',
                                               request_ip=request.remote_addr,
@@ -177,6 +183,7 @@ def register():
                             flash(gettext('Error while sending email'))
 
             except IntegrityError:
+                    log.error('That email is already taken')
                     AccountLog.create(operation_type='register',
                                       error='That email is already taken',
                                       request_ip=request.remote_addr,
@@ -186,6 +193,7 @@ def register():
             return redirect(url_for('register', lang_code=g.current_lang))
         else:
             if not recaptcha.verify():
+                log.error('Recaptcha failed')
                 AccountLog.create(operation_type='register',
                                   error='Recaptcha failed',
                                   request_ip=request.remote_addr,
@@ -194,6 +202,7 @@ def register():
                 flash(gettext('Recaptcha failed'))
 
     if request.method == 'POST' and not form.accept_tos.data:
+        log.error('You should accept the TOS')
         AccountLog.create(operation_type='register',
                           error='You should accept the TOS',
                           request_ip=request.remote_addr,

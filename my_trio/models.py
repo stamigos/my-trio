@@ -74,12 +74,25 @@ class AccountLog(_Model):
     created = DateTimeField(default=peewee_datetime.datetime.now)
 
 
+class ErrorLog(_Model):
+    class Meta:
+        db_table = "error_logs"
+
+    request_data = TextField()
+    request_ip = CharField()
+    request_url = CharField()
+    request_method = CharField()
+    error = TextField()
+    traceback = TextField(null=True)
+    created = DateTimeField(default=peewee_datetime.datetime.now)
+
+
 def init_db():
     try:
         db.connect()
-        map(lambda l: db.drop_table(l, True), [Account, AccountLog])
+        map(lambda l: db.drop_table(l, True), [Account, AccountLog, ErrorLog])
         print "tables dropped"
-        db.create_tables([Account, AccountLog])
+        db.create_tables([Account, AccountLog, ErrorLog])
         print "tables created"
     except:
         db.rollback()
