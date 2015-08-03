@@ -1,5 +1,6 @@
 from hashlib import sha1
 import random
+import smtplib
 
 from flask import flash, render_template, request, redirect, url_for, Blueprint, g, abort
 from peewee import IntegrityError, datetime as peewee_datetime
@@ -8,10 +9,11 @@ from flask.ext.babel import gettext
 
 from my_trio import app, recaptcha, mail
 from my_trio import babel
-from my_trio.models import Account, db
+from my_trio.models import Account, AccountLog, db
 from my_trio.accounts.forms import RegistrationForm
 from my_trio.utils import check_password_strength
 from my_trio.utils import get_random_string
+from my_trio import log
 from config import MAIL_USERNAME
 from auth import CustomAuth
 
@@ -57,6 +59,12 @@ def index():
             keyword = request.form['keyword']
 
             if password != repeat_password:
+                log.error("Password's mismatch")
+                AccountLog.create(operation_type='change password',
+                                  error="Password's mismatch",
+                                  request_ip=request.remote_addr,
+                                  request_headers=request.headers,
+                                  created=peewee_datetime.datetime.now())
                 flash(gettext("Password's mismatch"))
             else:
                 if check_password_strength(user.email, password):
@@ -65,6 +73,10 @@ def index():
                     user.keyword = keyword
                     user.last_log_in = peewee_datetime.datetime.now()
                     user.save()
+                    AccountLog.create(operation_type='change password',
+                                      request_ip=request.remote_addr,
+                                      request_headers=request.headers,
+                                      created=peewee_datetime.datetime.now())
                     flash(gettext("Password changed"))
 
     if user.last_log_in:
@@ -85,22 +97,34 @@ def login():
     if request.method == 'POST' and request.form['email']:
         try:
             user = Account.select().where(Account.email == request.form['email']).get()
-        except Account.DoesNotExist:
-            abort(404)
-        password = sha1(request.form['password']).hexdigest()
+            password = sha1(request.form['password']).hexdigest()
+            if user.password == password:
+                auth.login_user(user)
+                if user.last_log_in:
+                    user.last_log_in = peewee_datetime.datetime.now()
+                    user.save()
+                AccountLog.create(operation_type='login',
+                                  request_ip=request.remote_addr,
+                                  request_headers=request.headers,
+                                  created=peewee_datetime.datetime.now())
+                flash(gettext('Logged in successfully.'))
+                return redirect(request.args.get('next') or
+                                url_for('index', lang_code=g.current_lang))
+            else:
+                AccountLog.create(operation_type='login',
+                                  error='Email or password incorrect',
+                                  request_ip=request.remote_addr,
+                                  request_headers=request.headers,
+                                  created=peewee_datetime.datetime.now())
+                flash(gettext('Email or password incorrect'))
 
-        if user and user.password == password:
-            auth.login_user(user)
-            if user.last_log_in:
-                user.last_log_in = peewee_datetime.datetime.now()
-            user.save()
-            flash(gettext('Logged in successfully.'))
-            return redirect(request.args.get('next') or
-                            url_for('index', lang_code=g.current_lang))
-        else:
-            flash(gettext('Email or password incorrect'))
-            if not user:
-                abort(404)
+        except Account.DoesNotExist:
+                AccountLog.create(operation_type='login',
+                                  error='Email or password incorrect',
+                                  request_ip=request.remote_addr,
+                                  request_headers=request.headers,
+                                  created=peewee_datetime.datetime.now())
+                flash(gettext('Email or password incorrect'))
 
     return render_template('login.html',
                            url_register=url_for('register', lang_code=g.current_lang),
@@ -116,6 +140,7 @@ def logout():
 @app.route('/<lang_code>/register/', methods=['GET', 'POST'])
 def register():
     form = RegistrationForm(request.form)
+
     if request.method == 'POST' and form.validate():
         if recaptcha.verify():
             try:
@@ -130,17 +155,50 @@ def register():
                     msg.subject = gettext("Welcome")
                     msg.html = render_template("registration_complete.html",
                                                password=password,
-                                               url_login=url_for('login', lang_code=g.current_lang, _external=True))
-                    mail.send(msg)
-                    flash(gettext('Successfully registered! Check your email.'))
+                                               url_login=url_for('login',
+                                                                 lang_code=g.current_lang,
+                                                                 _external=True))
+
+                    with app.app_context():
+                        try:
+                            mail.send(msg)
+                            AccountLog.create(operation_type='register',
+                                              request_ip=request.remote_addr,
+                                              request_headers=request.headers,
+                                              created=peewee_datetime.datetime.now())
+
+                            flash(gettext('Successfully registered! Check your email.'))
+                        except smtplib.SMTPRecipientsRefused:
+                            AccountLog.create(operation_type='register',
+                                              error='Error while sending mail',
+                                              request_ip=request.remote_addr,
+                                              request_headers=request.headers,
+                                              created=peewee_datetime.datetime.now())
+                            flash(gettext('Error while sending email'))
 
             except IntegrityError:
+                    AccountLog.create(operation_type='register',
+                                      error='That email is already taken',
+                                      request_ip=request.remote_addr,
+                                      request_headers=request.headers,
+                                      created=peewee_datetime.datetime.now())
                     flash(gettext('That email is already taken'))
             return redirect(url_for('register', lang_code=g.current_lang))
         else:
             if not recaptcha.verify():
+                AccountLog.create(operation_type='register',
+                                  error='Recaptcha failed',
+                                  request_ip=request.remote_addr,
+                                  request_headers=request.headers,
+                                  created=peewee_datetime.datetime.now())
                 flash(gettext('Recaptcha failed'))
+
     if request.method == 'POST' and not form.accept_tos.data:
+        AccountLog.create(operation_type='register',
+                          error='You should accept the TOS',
+                          request_ip=request.remote_addr,
+                          request_headers=request.headers,
+                          created=peewee_datetime.datetime.now())
         flash(gettext('You should accept the TOS'))
     return render_template('register.html', form=form,
                            url_register=url_for('register', lang_code=g.current_lang),

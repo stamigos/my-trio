@@ -1,6 +1,6 @@
 # -*- coding: utf8 -*-
 
-from peewee import Model, CharField, DateTimeField, BooleanField, datetime as peewee_datetime
+from peewee import Model, CharField, DateTimeField, TextField, IntegerField, datetime as peewee_datetime
 from playhouse.pool import PooledPostgresqlExtDatabase
 from flask_peewee.auth import BaseUser
 
@@ -52,7 +52,7 @@ class Account(_Model, BaseUser):
     class Meta:
         db_table = "accounts"
 
-    email = CharField(unique=True)
+    email = CharField(unique=True, max_length=320)
     registered_on = DateTimeField(default=peewee_datetime.datetime.now())
     password = CharField()
     last_log_in = DateTimeField(null=True)
@@ -63,12 +63,23 @@ class Account(_Model, BaseUser):
         return self.email
 
 
+class AccountLog(_Model):
+    class Meta:
+        db_table = "account_logs"
+
+    operation_type = CharField()
+    error = TextField(null=True)
+    request_ip = CharField()
+    request_headers = TextField()
+    created = DateTimeField(default=peewee_datetime.datetime.now)
+
+
 def init_db():
     try:
         db.connect()
-        map(lambda l: db.drop_table(l, True), [Account])
+        map(lambda l: db.drop_table(l, True), [Account, AccountLog])
         print "tables dropped"
-        db.create_tables([Account])
+        db.create_tables([Account, AccountLog])
         print "tables created"
     except:
         db.rollback()

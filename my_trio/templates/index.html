@@ -17,6 +17,16 @@
 <div class="container">
 
 {% if user %}
+    <ul class="nav nav-pills">
+    <span><a href="{{ logout_url }}" id="btn-login" class="btn btn-success">{{ _("Logout") }}</a></span>
+      <li><a href="#">Платежи</a></li>
+      <li><a href="#">Выводы</a></li>
+      <li><a href="#">Обмены/Переводы</a></li>
+      <li><a href="#">Магазины</a></li>
+      <li><a href="#">Статистика</a></li>
+      <li><a href="#">API</a></li>
+      <li><a href="#">Настройки аккаунта</a></li>
+    </ul>
     {% with messages = get_flashed_messages() %}
   {% if messages %}
     <ul class=flashes>
@@ -26,9 +36,7 @@
     </ul>
   {% endif %}
 {% endwith %}
-    <p style="padding-top: 15px;">
-        <a href="{{ logout_url }}" id="btn-login" class="btn btn-success">{{ _("Logout") }}</a>
-    </p>
+
     {% if first_login == 'None' %}
          <div id="signupbox" style="margin-top:50px" class="mainbox col-md-6 col-md-offset-3 col-sm-8 col-sm-offset-2">
                     <div class="panel panel-info">

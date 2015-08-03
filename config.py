@@ -1,7 +1,15 @@
 # -*- coding: utf8 -*-
 import os
+import logging
+from my_trio.utils import Struct
+from datetime import date
 
 basedir = os.path.abspath(os.path.dirname(__file__))
+
+HOME_DIR = os.path.expanduser("~/PycharmProjects")
+LOG_TO = os.path.join(HOME_DIR, "my-trio/logs")
+TMP_DIR = os.path.join(HOME_DIR, "my-trio/tmp")
+
 
 CSRF_ENABLED = True
 SECRET_KEY = 'you-will-never-guess'
@@ -9,11 +17,14 @@ SECRET_KEY = 'you-will-never-guess'
 GOOGLE_KEY = "6LfB4AkTAAAAAN1AKCBeT0YNme3gLK66WYkuwIb4"
 GOOGLE_SECRET_KEY = "6LfB4AkTAAAAAIs-7bsnz_uBm40c0YdfNuR-eseu"
 
-# configure our database
-DATABASE = {
-    'name': 'trio_db.db',
-    'engine': 'peewee.SqliteDatabase',
-}
+LOGGER = Struct(
+    level=logging.DEBUG,
+    file="log_{date:%Y-%m-%d}.log".format(date=date.today()),
+    formatter=logging.Formatter("%(asctime)s [%(thread)d:%(threadName)s] "
+                                "[%(levelname)s] - %(name)s:%(message)s"),
+    peewee_file="peewee_log_{date:%Y-%m-%d}.log".format(date=date.today())
+)
+
 
 DB_CONFIG = dict(database="trio_db", user="trio_user",
                  password=" ", host="localhost", port=5432,
@@ -38,10 +49,6 @@ LANGUAGES = {
     'ru': 'Russian',
     'uk_UA': 'Ukrainian'
 }
-
-# microsoft translation service
-MS_TRANSLATOR_CLIENT_ID = ''  # enter your MS translator app id here
-MS_TRANSLATOR_CLIENT_SECRET = ''  # enter your MS translator app secret here
 
 # administrator list
 ADMINS = ['you@example.com']
