@@ -2,7 +2,8 @@ from hashlib import sha1
 import random
 import smtplib
 
-from flask import flash, render_template, request, redirect, url_for, Blueprint, g, abort
+from flask import flash, render_template, request, redirect, url_for,\
+    Blueprint, g, abort, jsonify, make_response
 from peewee import IntegrityError, datetime as peewee_datetime
 from flask.ext.mail import Message
 from flask.ext.babel import gettext
@@ -16,6 +17,7 @@ from my_trio.utils import get_random_string
 from my_trio import log
 from config import MAIL_USERNAME
 from auth import CustomAuth
+from my_trio.decorators import jsonify_result
 
 
 auth = CustomAuth(app, db, user_model=Account)
@@ -42,6 +44,18 @@ def get_locale():
 @app.route('/')
 def root():
     return redirect(url_for('index', lang_code='en'))
+
+
+def to_dict(self):
+        return dict(self._data.items())
+
+
+@app.route('/logs/accounts/')
+@jsonify_result
+def get_logs():
+    def get_result(log_class):
+        return {"logs": [l.to_dict() for l in list(log_class.select().order_by(log_class.created.desc()))]}
+    return get_result(AccountLog)
 
 
 @app.route('/<lang_code>/', methods=['GET', 'POST'])
