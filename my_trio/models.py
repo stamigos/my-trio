@@ -67,9 +67,10 @@ class AccountLog(_Model):
     class Meta:
         db_table = "account_logs"
 
-    operation_type = CharField()
+    operation_type = IntegerField()
     error = TextField(null=True)
     request_ip = CharField()
+    request_url = TextField()
     request_headers = TextField()
     created = DateTimeField(default=peewee_datetime.datetime.now)
 
@@ -84,7 +85,6 @@ class ErrorLog(_Model):
     request_method = CharField()
     error = TextField()
     traceback = TextField(null=True)
-    created = DateTimeField(default=peewee_datetime.datetime.now)
 
 
 def init_db():

@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}{{ _("Settings") }}{% endblock %}
+{% block content %}
+    {{ form.first_name }}
+    {{ form.middle_name }}
+    {{ form.last_name }}
+    {{ form.default_lang }}
+    {{ form.passport_code }}
+{% endblock %}

@@ -29,3 +29,9 @@ class WithdrawStatus:
         PsProcessingError = 4
         Success = 5
         Rejected = 6
+
+
+class OperationType:
+        Registration = 1
+        Login = 2
+        Logout = 3
