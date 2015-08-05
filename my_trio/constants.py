@@ -35,3 +35,4 @@ class OperationType:
         Registration = 1
         Login = 2
         Logout = 3
+        Index = 4

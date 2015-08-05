@@ -1,26 +1,17 @@
 # -*- coding: utf-8 -*-
 from hashlib import sha1
-import random
-import smtplib
+import traceback
 
-from flask import flash, render_template, request, redirect, url_for,\
-    Blueprint, g, abort, jsonify, make_response
-from peewee import IntegrityError, datetime as peewee_datetime
+from flask import render_template, request, url_for, g
 from flask.ext.mail import Message
 from flask.ext.babel import gettext
 
-from my_trio import app, recaptcha, mail
-from my_trio import babel
+from my_trio import app, mail
 from my_trio.models import Account, AccountLog, db, ErrorLog
-from my_trio.accounts.forms import RegistrationForm
-from my_trio.utils import check_password_strength
-from my_trio.utils import get_random_string, Struct
+from my_trio.utils import get_random_string
 from my_trio import log
 from config import MAIL_USERNAME
-from auth import CustomAuth
-from my_trio.decorators import jsonify_result
 from my_trio.constants import OperationType
-import traceback
 
 
 class ServiceException(Exception):
@@ -43,14 +34,13 @@ class RegistrationController:
             self._verify_tos(form)
             email = self._verify_email(form)
             password = get_random_string()
-            with db.transaction():
-                account = self._create_account(email, password)
-                self.db_logger.account = account
-                if not self._send_email(email, password):
-                    db.transaction().rollback()
+            account = self._create_account_db(email, password)
             return dict(account=account, message="Success", result=True)
         except ServiceException, ex:
-            self.log.warn(ex.message)
+            self.log.warn("[operation_type: %i, error: %s, request_ip: %s, "
+                          "request_url: %s, request_headers: %s]" %
+                          (OperationType.Index, ex.message, request.remote_addr,
+                           request.url, dict(request.headers.items())))
             self.db_logger.error = ex.message
             return dict(account=account, message=ex.message, result=False)
         except Exception, ex:
@@ -88,6 +78,15 @@ class RegistrationController:
 
     def _create_account(self, email, password):
         return Account.create(email=email, password=sha1(password).hexdigest())
+
+    def _create_account_db(self, email, password):
+        with db.transaction():
+            account = self._create_account(email, password)
+            self.db_logger.account = account
+            if not self._send_email(email, password):
+                db.transaction().rollback()
+            else:
+                return account
 
     def _send_email(self, email, password):
         try:

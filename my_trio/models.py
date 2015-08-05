@@ -85,6 +85,7 @@ class ErrorLog(_Model):
     request_method = CharField()
     error = TextField()
     traceback = TextField(null=True)
+    created = DateTimeField(default=peewee_datetime.datetime.now)
 
 
 def init_db():

@@ -1,26 +1,20 @@
-from hashlib import sha1
 import random
-import smtplib
 
 from flask import flash, render_template, request, redirect, url_for,\
     Blueprint, g, abort
-from peewee import IntegrityError, datetime as peewee_datetime
-from flask.ext.mail import Message
+from peewee import datetime as peewee_datetime
 from flask.ext.babel import gettext
 
-from my_trio import app, recaptcha, mail
+from my_trio import app, recaptcha
 from my_trio import babel
 from my_trio.models import Account, AccountLog, db
 from my_trio.accounts.forms import RegistrationForm, ProfileForm
-from my_trio.utils import check_password_strength
-from my_trio.utils import get_random_string
-from my_trio import log
-from config import MAIL_USERNAME
 from auth import CustomAuth
 from my_trio.decorators import jsonify_result
-from my_trio.constants import OperationType
-from my_trio.accounts.register import RegistrationController
-
+from my_trio.accounts.controllers.register import RegistrationController
+from my_trio.accounts.controllers.login import LoginController
+from my_trio.accounts.controllers.index import IndexController
+from my_trio.accounts.controllers.logout import LogoutController
 
 auth = CustomAuth(app, db, user_model=Account)
 
@@ -48,10 +42,6 @@ def root():
     return redirect(url_for('index', lang_code='en'))
 
 
-def to_dict(self):
-        return dict(self._data.items())
-
-
 @app.route('/logs/account/')
 @jsonify_result
 def get_logs():
@@ -62,54 +52,35 @@ def get_logs():
 
 @app.route('/<lang_code>/', methods=['GET', 'POST'])
 def index():
-    user = auth.get_logged_in_user()
+    account = auth.get_logged_in_user()
+    if request.method == 'GET':
+        if account is None:
+            return render_template('index.html',
+                                   create_url=url_for('register', lang_code=g.current_lang),
+                                   login_url=url_for('login', lang_code=g.current_lang))
+        else:
+            if account.last_log_in:
+                account.last_log_in = peewee_datetime.datetime.now()
+                account.save()
+            return render_template('index.html',
+                                   first_login=str(account.last_log_in),
+                                   logout_url=url_for('logout', lang_code=g.current_lang),
+                                   settings_url=url_for('settings', lang_code=g.current_lang))
 
-    if user is None:
+    result = IndexController(request).call(account, request.form)
+
+    if result['account'] and result['result']:
+        flash(result['message'])
         return render_template('index.html',
-                               create_url=url_for('register', lang_code=g.current_lang),
-                               login_url=url_for('login', lang_code=g.current_lang))
-    if request.method == 'POST':
-        if user.last_log_in is None:
-            password = request.form['password']
-            repeat_password = request.form['password_repeat']
-            keyword = request.form['keyword']
-
-            if password != repeat_password:
-                log.error("Password's mismatch [operation_type: %i, request_ip: %s, "
-                          "request_url: %s, request_headers: %s]" %
-                          (OperationType.Registration, request.remote_addr,
-                           request.url, dict(request.headers.items())))
-                AccountLog.create(operation_type=OperationType.Registration,
-                                  error="Password's mismatch",
-                                  request_ip=request.remote_addr,
-                                  request_url=request.url,
-                                  request_headers=dict(request.headers.items()),
-                                  created=peewee_datetime.datetime.now())
-                flash(gettext("Password's mismatch"))
-            else:
-                if check_password_strength(user.email, password):
-                    hashed_password = sha1(password).hexdigest()
-                    user.password = hashed_password
-                    user.keyword = keyword
-                    user.last_log_in = peewee_datetime.datetime.now()
-                    user.save()
-                    log.info("Password changed [operation_type: %i, request_ip: %s,"
-                             " request_url: %s, request_headers: %s]" %
-                             (OperationType.Login, request.remote_addr,  request.url, dict(request.headers.items())))
-                    AccountLog.create(operation_type=OperationType.Registration,
-                                      request_ip=request.remote_addr,
-                                      request_url=request.url,
-                                      request_headers=dict(request.headers.items()),
-                                      created=peewee_datetime.datetime.now())
-                    flash(gettext("Password changed"))
-
-    if user.last_log_in:
-        user.last_log_in = peewee_datetime.datetime.now()
-
-    return render_template('index.html',
-                           first_login=str(user.last_log_in),
-                           logout_url=url_for('logout', lang_code=g.current_lang),
-                           settings_url=url_for('settings', lang_code=g.current_lang))
+                               first_login=str(account.last_log_in),
+                               logout_url=url_for('logout', lang_code=g.current_lang),
+                               settings_url=url_for('settings', lang_code=g.current_lang))
+    else:
+        flash(result['message'])
+        return render_template('index.html',
+                               first_login=str(account.last_log_in),
+                               logout_url=url_for('logout', lang_code=g.current_lang),
+                               settings_url=url_for('settings', lang_code=g.current_lang))
 
 
 @app.route('/<lang_code>/settings/')
@@ -123,59 +94,33 @@ def rules():
     return render_template('rules.html', lang_code=g.current_lang)
 
 
-@app.route('/<lang_code>/login/', methods=['GET', 'POST'])
+@app.route('/<lang_code>/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST' and request.form['email']:
-        try:
-            user = Account.select().where(Account.email == request.form['email']).get()
-            password = sha1(request.form['password']).hexdigest()
-            if user.password == password:
-                auth.login_user(user)
-                if user.last_log_in:
-                    user.last_log_in = peewee_datetime.datetime.now()
-                    user.save()
-                log.info("Logged in. [operation_type: %i, request_ip: %s,"
-                         "  request_url: %s, request_headers: %s]" %
-                         (OperationType.Login, request.remote_addr,  request.url, dict(request.headers.items())))
-                AccountLog.create(operation_type=OperationType.Login,
-                                  request_ip=request.remote_addr,
-                                  request_url=request.url,
-                                  request_headers=dict(request.headers.items()),
-                                  created=peewee_datetime.datetime.now())
-                flash(gettext('Logged in successfully.'))
-                return redirect(request.args.get('next') or
-                                url_for('index', lang_code=g.current_lang))
-            else:
-                log.error("Password incorrect")
-                AccountLog.create(operation_type=OperationType.Login,
-                                  error='Password incorrect',
-                                  request_ip=request.remote_addr,
-                                  request_url=request.url,
-                                  request_headers=dict(request.headers.items()),
-                                  created=peewee_datetime.datetime.now())
-                flash(gettext('Email or password incorrect'))
+    if request.method == 'GET':
+        return render_template('login.html',
+                               url_register=url_for('register', lang_code=g.current_lang),
+                               url_login=url_for('login', lang_code=g.current_lang))
 
-        except Account.DoesNotExist:
-                log.error("Account does not exist [operation_type: %i,"
-                          " request_ip: %s, request_url: %s, request_headers: %s]" %
-                          (OperationType.Login, request.remote_addr, request.url, dict(request.headers.items())))
-                AccountLog.create(operation_type=OperationType.Login,
-                                  error='Email or password incorrect',
-                                  request_ip=request.remote_addr,
-                                  request_url=request.url,
-                                  request_headers=dict(request.headers.items()),
-                                  created=peewee_datetime.datetime.now())
-                flash(gettext('Email or password incorrect'))
-
-    return render_template('login.html',
-                           url_register=url_for('register', lang_code=g.current_lang),
-                           url_login=url_for('login', lang_code=g.current_lang))
+    result = LoginController(request).call(request.form, auth)
+    if result['account'] and result['result']:
+        flash(result['message'])
+        return redirect(url_for('index', lang_code=g.current_lang))
+    else:
+        flash(result['message'])
+        return render_template('login.html',
+                               url_register=url_for('register', lang_code=g.current_lang),
+                               url_login=url_for('login', lang_code=g.current_lang))
 
 
 @app.route('/<lang_code>/logout/')
 def logout():
-    auth.logout_user()
-    return redirect(url_for('index', lang_code=g.current_lang))
+    result = LogoutController(request).call(auth)
+    if result['result']:
+        flash(result['message'])
+        return redirect(url_for('index', lang_code=g.current_lang))
+    else:
+        flash(result['message'])
+        return redirect(url_for('index', lang_code=g.current_lang))
 
 
 @app.route('/<lang_code>/register/', methods=['GET', 'POST'])
@@ -186,91 +131,14 @@ def register():
         return render_template('register.html', form=form,
                                url_register=url_for('register', lang_code=g.current_lang),
                                url_login=url_for('login', lang_code=g.current_lang))
-    if request.method == "POST":
-        result = RegistrationController(request).call(form, recaptcha)
 
-        if not result:
-            flash(result['message'])
-        else:
-            flash(result['message'])
-            return render_template('register.html', form=form,
-                                   url_register=url_for('register', lang_code=g.current_lang),
-                                   url_login=url_for('login', lang_code=g.current_lang))
-"""
-@app.route('/<lang_code>/register/', methods=['GET', 'POST'])
-def register():
-    form = RegistrationForm(request.form)
+    result = RegistrationController(request).call(form, recaptcha)
 
-    if request.method == 'POST' and form.validate():
-        if recaptcha.verify():
-            try:
-                with db.transaction():
-                    email = form.email.data
-                    password = get_random_string()
-                    msg = Message("Hello", sender=MAIL_USERNAME,
-                                  recipients=[email])
-                    account = Account.create(
-                        email=email, password=sha1(password).hexdigest()
-                    )
-                    msg.subject = gettext("Welcome")
-                    msg.html = render_template("registration_complete.html",
-                                               password=password,
-                                               url_login=url_for('login',
-                                                                 lang_code=g.current_lang,
-                                                                 _external=True))
-
-                    with app.app_context():
-                        try:
-                            mail.send(msg)
-                            log.info('Successfully registered! Check your email.')
-                            AccountLog.create(operation_type=OperationType.Registration,
-                                              request_ip=request.remote_addr,
-                                              request_url=request.url,
-                                              request_headers=dict(request.headers.items()),
-                                              created=peewee_datetime.datetime.now())
-
-                            flash(gettext('Successfully registered! Check your email.'))
-                        except smtplib.SMTPRecipientsRefused:
-                            log.error('Error while sending email')
-                            AccountLog.create(operation_type=OperationType.Registration,
-                                              error='Error while sending mail',
-                                              request_ip=request.remote_addr,
-                                              request_url=request.url,
-                                              request_headers=dict(request.headers.items()),
-                                              created=peewee_datetime.datetime.now())
-                            flash(gettext('Error while sending email'))
-
-            except IntegrityError:
-                    log.error('That email is already taken')
-                    AccountLog.create(operation_type=OperationType.Registration,
-                                      error='That email is already taken',
-                                      request_ip=request.remote_addr,
-                                      request_url=request.url,
-                                      request_headers=dict(request.headers.items()),
-                                      created=peewee_datetime.datetime.now())
-                    flash(gettext('That email is already taken'))
-            return redirect(url_for('register', lang_code=g.current_lang))
-        else:
-            if not recaptcha.verify():
-                log.error('Recaptcha failed')
-                AccountLog.create(operation_type=OperationType.Registration,
-                                  error='Recaptcha failed',
-                                  request_ip=request.remote_addr,
-                                  request_url=request.url,
-                                  request_headers=dict(request.headers.items()),
-                                  created=peewee_datetime.datetime.now())
-                flash(gettext('Recaptcha failed'))
-
-    if request.method == 'POST' and not form.accept_tos.data:
-        log.error('You should accept the TOS')
-        AccountLog.create(operation_type=OperationType.Registration,
-                          error='You should accept the TOS',
-                          request_ip=request.remote_addr,
-                          request_url=request.url,
-                          request_headers=dict(request.headers.items()),
-                          created=peewee_datetime.datetime.now())
-        flash(gettext('You should accept the TOS'))
-    return render_template('register.html', form=form,
-                           url_register=url_for('register', lang_code=g.current_lang),
-                           url_login=url_for('login', lang_code=g.current_lang))
-"""
+    if result['account'] and result['result'] == True:
+        flash(result['message'])
+        return redirect(url_for('login', lang_code=g.current_lang))
+    else:
+        flash(result['message'])
+        return render_template('register.html', form=form,
+                               url_register=url_for('register', lang_code=g.current_lang),
+                               url_login=url_for('login', lang_code=g.current_lang))
